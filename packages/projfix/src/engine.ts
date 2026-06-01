@@ -11,16 +11,21 @@ import { iconDirectionModule } from './modules/icon-direction.js'
 import { persianNumeralsModule } from './modules/persian-numerals.js'
 import { chakraKnownBugsModule } from './modules/chakra-known-bugs.js'
 import { domOrderModule } from './modules/dom-order.js'
+import { debugArtifactsModule } from './modules/debug-artifacts.js'
+import { createTokenReplacerModule } from './modules/token-replacer.js'
+import { runBuildCheck, runGitCheck } from './modules/build-git-check.js'
 
-const ALL_MODULES: CheckModule[] = [
+const BASE_MODULES: CheckModule[] = [
   cssLogicalPropsModule,
   iconDirectionModule,
   persianNumeralsModule,
   chakraKnownBugsModule,
   domOrderModule,
+  debugArtifactsModule,
 ]
 
-function getModules(config: ProjectConfig, selectedIds?: string[]): CheckModule[] {
+function getModules(projectRoot: string, config: ProjectConfig, selectedIds?: string[]): CheckModule[] {
+  const ALL_MODULES = [...BASE_MODULES, createTokenReplacerModule(projectRoot)]
   return ALL_MODULES.filter(m => {
     if (selectedIds && !selectedIds.includes(m.id)) return false
     if (m.supportedDS && config.ds !== 'generic' && !m.supportedDS.includes(config.ds)) return false
@@ -80,7 +85,7 @@ export async function run(
     files = getFiles(projectRoot, ['**/*.tsx', '**/*.ts', '**/*.jsx', '**/*.js'], ignorePatterns)
   }
 
-  const modules = getModules(config, options.modules)
+  const modules = getModules(projectRoot, config, options.modules)
 
   for (const filePath of files) {
     let content: string
@@ -134,6 +139,39 @@ export async function run(
       fixed: fixedCount,
       skipped: 0,
     })
+  }
+
+  // ── Build & Git check (project-level, not per-file) ──────────────────────
+  if (!options.modules || options.modules.includes('build-git')) {
+    const build = runBuildCheck(projectRoot)
+    if (!build.passed) {
+      results.push({
+        file: '[build]',
+        violations: [{
+          file: '[build]', line: 0, module: 'build-git', rule: 'build-failed',
+          message: `Build failed:\n${build.error}`,
+          severity: 'error', autoFixable: false,
+        }],
+        fixed: 0, skipped: 0,
+      })
+    }
+
+    const git = runGitCheck(projectRoot)
+    if (git.uncommitted.length > 0 || git.unpushed > 0) {
+      const msgs: string[] = []
+      if (git.uncommitted.length > 0) msgs.push(`${git.uncommitted.length} uncommitted file(s)`)
+      if (git.unpushed > 0) msgs.push(`${git.unpushed} unpushed commit(s)`)
+      results.push({
+        file: '[git]',
+        violations: [{
+          file: '[git]', line: 0, module: 'build-git', rule: 'git-dirty',
+          message: msgs.join(' | '),
+          severity: git.uncommitted.length > 0 ? 'error' : 'warning',
+          autoFixable: false,
+        }],
+        fixed: 0, skipped: 0,
+      })
+    }
   }
 
   return results
