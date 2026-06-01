@@ -14,6 +14,7 @@ import { domOrderModule } from './modules/dom-order.js'
 import { debugArtifactsModule } from './modules/debug-artifacts.js'
 import { createTokenReplacerModule } from './modules/token-replacer.js'
 import { runBuildCheck, runGitCheck } from './modules/build-git-check.js'
+import { dsComponentUsageModule } from './modules/ds-component-usage.js'
 
 const BASE_MODULES: CheckModule[] = [
   cssLogicalPropsModule,
@@ -22,6 +23,7 @@ const BASE_MODULES: CheckModule[] = [
   chakraKnownBugsModule,
   domOrderModule,
   debugArtifactsModule,
+  dsComponentUsageModule,
 ]
 
 function getModules(projectRoot: string, config: ProjectConfig, selectedIds?: string[]): CheckModule[] {
@@ -44,6 +46,40 @@ function getFiles(projectRoot: string, patterns: string[], ignorePatterns: strin
     files.push(...matches)
   }
   return [...new Set(files)]
+}
+
+function getIgnoredLines(content: string): Set<number> {
+  const ignored = new Set<number>()
+  const lines = content.split('\n')
+  let disabledFrom = -1
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    // inline: any line ending with // projfix-ignore
+    if (lines[i].includes('// projfix-ignore')) {
+      ignored.add(i + 1)
+      continue
+    }
+    // block: // projfix-disable ... // projfix-enable
+    if (trimmed.startsWith('// projfix-disable')) {
+      disabledFrom = i + 2  // disable starts on NEXT line
+      continue
+    }
+    if (trimmed === '// projfix-enable') {
+      // disable ends on this line (enable line itself is not disabled)
+      if (disabledFrom !== -1) {
+        for (let n = disabledFrom; n <= i; n++) ignored.add(n)
+        disabledFrom = -1
+      }
+      continue
+    }
+  }
+  // unclosed disable block — disable to end of file
+  if (disabledFrom !== -1) {
+    for (let n = disabledFrom; n <= lines.length; n++) ignored.add(n)
+  }
+
+  return ignored
 }
 
 function getChangedFiles(projectRoot: string): string[] {
@@ -98,12 +134,14 @@ export async function run(
     const fileDirection = getDirectionForFile(filePath, config)
     const fileConfig: ProjectConfig = { ...config, direction: fileDirection }
 
+    const ignoredLines = getIgnoredLines(content)
     const allViolations: Violation[] = []
 
     for (const module of modules) {
       if (!module.supportedDirections.includes(fileDirection)) continue
 
       const violations = module.check(filePath, content, fileConfig)
+        .filter(v => !ignoredLines.has(v.line))
       allViolations.push(...violations)
     }
 

@@ -89,6 +89,21 @@ export const chakraKnownBugsModule: CheckModule = {
         }
       }
 
+      // noOfLines renamed to lineClamp in Chakra v3
+      if (/noOfLines=/.test(line)) {
+        violations.push({
+          file: filePath,
+          line: i + 1,
+          module: 'chakra-known-bugs',
+          rule: 'noflines-renamed',
+          message: 'noOfLines prop does not exist in Chakra v3 — use lineClamp instead',
+          severity: 'error',
+          autoFixable: true,
+          original: 'noOfLines=',
+          replacement: 'lineClamp=',
+        })
+      }
+
       // Avatar.Root with asChild (do not forward refs) — skip comments
       if (line.includes('Avatar.Root') && line.includes('asChild') && !trimmed.startsWith('{/*') && !trimmed.startsWith('//')) {
         violations.push({
