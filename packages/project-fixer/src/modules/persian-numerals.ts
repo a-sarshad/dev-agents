@@ -78,8 +78,22 @@ export const persianNumeralsModule: CheckModule = {
       SIMPLE_JSX_EXPR.lastIndex = 0
       let match: RegExpExecArray | null
       while ((match = SIMPLE_JSX_EXPR.exec(line)) !== null) {
-        const expr = match[1].toLowerCase()
-        const hasDisplayKeyword = DISPLAY_KEYWORDS.some(kw => expr.includes(kw.toLowerCase()))
+        const expr = match[1]
+        const exprLower = expr.toLowerCase()
+
+        // skip prop position: someprop={expr} — not a text child
+        const matchIndex = match.index
+        const charBefore = line[matchIndex - 1]
+        if (charBefore === '=') continue
+
+        // skip setter functions: setXxx
+        if (/^set[A-Z]/.test(expr)) continue
+
+        // skip React key props and non-display suffixes
+        if (/Key$|Ref$|Id$|Type$|Label$|Text$|Class$/.test(expr)) continue
+
+        // skip if variable definition on same/nearby line uses toLocaleString or formatPrice
+        const hasDisplayKeyword = DISPLAY_KEYWORDS.some(kw => exprLower.includes(kw.toLowerCase()))
         if (!hasDisplayKeyword) continue
 
         violations.push({

@@ -62,6 +62,10 @@ export const iconDirectionModule: CheckModule = {
     const lines = content.split('\n')
     const iconLib = ICON_PATTERNS[config.icon_lib] ?? ICON_PATTERNS.generic
 
+    // skip files explicitly verified by user
+    const ignoreFiles: string[] = (config as unknown as Record<string, string[]>)['ignore_icon_direction_files'] ?? []
+    if (ignoreFiles.some(f => filePath.includes(f))) return []
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       const context = getWindowLines(lines, i)
@@ -74,7 +78,7 @@ export const iconDirectionModule: CheckModule = {
       for (const icon of iconLib.right) {
         if (!line.includes(icon)) continue
 
-        // Breadcrumb separator — always flag in RTL
+        // Breadcrumb separator — flag in RTL (NOT auto-fixable — context determines correct icon)
         const isBreadcrumb = BREADCRUMB_PATTERNS.some(p => p.test(context))
         if (isBreadcrumb) {
           const opposite = icon.replace('Right', 'Left')
@@ -83,11 +87,9 @@ export const iconDirectionModule: CheckModule = {
             line: i + 1,
             module: 'icon-direction',
             rule: 'breadcrumb-separator-rtl',
-            message: `${icon} used as breadcrumb separator in RTL — should be ${opposite}`,
-            severity: 'error',
-            autoFixable: true,
-            original: icon,
-            replacement: opposite,
+            message: `${icon} near breadcrumb/separator context in RTL — verify direction (separator→${opposite}, back-button→${icon})`,
+            severity: 'warning',
+            autoFixable: false,
           })
           continue
         }

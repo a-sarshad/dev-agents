@@ -89,8 +89,8 @@ export const chakraKnownBugsModule: CheckModule = {
         }
       }
 
-      // Avatar.Root with asChild (do not forward refs)
-      if (line.includes('Avatar.Root') && line.includes('asChild')) {
+      // Avatar.Root with asChild (do not forward refs) — skip comments
+      if (line.includes('Avatar.Root') && line.includes('asChild') && !trimmed.startsWith('{/*') && !trimmed.startsWith('//')) {
         violations.push({
           file: filePath,
           line: i + 1,
@@ -102,9 +102,13 @@ export const chakraKnownBugsModule: CheckModule = {
         })
       }
 
-      // hardcoded hex color
-      const hexMatch = line.match(/#[0-9a-fA-F]{3,8}(?![^"'`]*import)/)
-      if (hexMatch && !line.includes('//')) {
+      // hardcoded hex color — skip SVG strings, CSS var() fallbacks, comments
+      const hexMatch = line.match(/#[0-9a-fA-F]{3,8}/)
+      const isInVarFallback = /var\(--[^,]+,\s*#[0-9a-fA-F]/.test(line)
+      const isInSvgString = line.includes('<svg') || line.includes('<rect') || line.includes('<path') || line.includes('fill=') || line.includes('rgba(')
+      const isInColorData = /makeThemeSvg|PALETTE|palette|colorData|swatchColors/.test(line)
+        || (line.match(/#[0-9a-fA-F]{3,8}/g) ?? []).length >= 3
+      if (hexMatch && !line.includes('//') && !isInVarFallback && !isInSvgString && !isInColorData) {
         violations.push({
           file: filePath,
           line: i + 1,
