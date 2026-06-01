@@ -1,5 +1,5 @@
 {
-  "name": "@dev-agents/project-fixer",
+  "name": "@dev-agents/projfix",
   "version": "0.1.0",
   "description": "Consistency checker & auto-fixer for RTL/LTR projects — DS-agnostic",
   "type": "module",
