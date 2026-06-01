@@ -12,12 +12,13 @@ const DEFAULTS: ProjectConfig = {
   ignore_custom_components: [],
 }
 
-export function loadConfig(projectRoot: string): ProjectConfig {
-  // search: CWD first, then provided path (handles `projfix ./src` from project root)
-  const candidates = [
-    resolve(process.cwd(), '.projfix.json'),
-    resolve(projectRoot, '.projfix.json'),
-  ]
+export function loadConfig(projectRoot: string, explicitConfigPath?: string): ProjectConfig {
+  const candidates = explicitConfigPath
+    ? [resolve(process.cwd(), explicitConfigPath)]
+    : [
+        resolve(process.cwd(), '.projfix.json'),
+        resolve(projectRoot, '.projfix.json'),
+      ]
 
   const configPath = candidates.find(p => existsSync(p))
 
