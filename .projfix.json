@@ -1,0 +1,8 @@
+{
+  "direction": "both",
+  "locale": "fa-IR",
+  "calendar": "jalali",
+  "ds": "generic",
+  "icon_lib": "generic",
+  "ignore": ["node_modules", "dist", "coverage"]
+}

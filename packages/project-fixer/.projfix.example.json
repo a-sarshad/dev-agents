@@ -1,0 +1,31 @@
+{
+  "_comment": "Copy to .projfix.json in your project root and customize",
+
+  "direction": "rtl",
+  "locale": "fa-IR",
+  "calendar": "jalali",
+  "ds": "chakra-v3",
+  "icon_lib": "lucide",
+
+  "ignore": [
+    "node_modules",
+    "dist",
+    ".next",
+    "build",
+    "coverage",
+    "public"
+  ],
+
+  "ignore_custom_components": [
+    "CustomTabs",
+    "MySelect"
+  ],
+
+  "modules": [
+    "css-logical-props",
+    "icon-direction",
+    "persian-numerals",
+    "chakra-known-bugs",
+    "dom-order"
+  ]
+}
