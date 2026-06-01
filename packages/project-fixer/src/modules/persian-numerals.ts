@@ -1,41 +1,48 @@
 import type { CheckModule, ProjectConfig, Violation } from '../types.js'
 
-// Patterns that strongly suggest a display number (not technical)
-const DISPLAY_NUMBER_PATTERNS = [
-  // price/amount
-  /\{[^}]*(price|amount|total|cost|قیمت|مبلغ|هزینه)[^}]*\}/gi,
-  // count/quantity
-  /\{[^}]*(count|quantity|تعداد|موجودی)[^}]*\}/gi,
-  // rating
-  /\{[^}]*(rating|امتیاز)[^}]*\}/gi,
-  // page numbers
-  /\{[^}]*(page|صفحه)[^}]*\}/gi,
+// Keywords that suggest a display number variable
+const DISPLAY_KEYWORDS = [
+  'price', 'amount', 'total', 'cost', 'count', 'quantity',
+  'rating', 'score', 'balance', 'fee', 'tax', 'discount',
+  'قیمت', 'مبلغ', 'هزینه', 'تعداد', 'موجودی', 'امتیاز',
 ]
 
-// Patterns that suggest technical IDs (should NOT be converted)
-const TECHNICAL_ID_PATTERNS = [
-  /id\s*[=:]/i,
-  /sku\s*[=:]/i,
-  /code\s*[=:]/i,
-  /key\s*[=:]/i,
-  /hash\s*[=:]/i,
-  /token\s*[=:]/i,
-  /\burl\b/i,
-  /\bpath\b/i,
-]
-
-// Already using locale → skip
+// Already using locale → skip line
 const ALREADY_LOCALIZED = [
-  'toLocaleString',
-  'toLocaleDateString',
-  'Intl.NumberFormat',
-  'fa-IR',
-  'ar-SA',
-  'ar-EG',
+  'toLocaleString', 'toLocaleDateString', 'Intl.NumberFormat',
+  'fa-IR', 'ar-SA', 'ar-EG', 'formatNumber', 'formatPrice',
 ]
 
-// Hardcoded Persian numerals in strings (common mistake)
-const LATIN_IN_PERSIAN_STRING = /["'][^"']*\d{2,}[^"']*["']/
+// Simple JSX expression: {someVar} or {obj.prop} or {fn(arg)}
+// NOT object literals (those have : and , inside)
+// NOT JSX comments {/* ... */}
+const SIMPLE_JSX_EXPR = /\{(?!\s*\/\*)([a-zA-Z_$][a-zA-Z0-9_.()[\]'"]*)\}/g
+
+function isObjectLiteral(line: string): boolean {
+  // line has { key: value } pattern → data definition, not display
+  return /\{\s*\w+\s*:/.test(line)
+}
+
+function isInsideComment(line: string): boolean {
+  const trimmed = line.trim()
+  return (
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('*') ||
+    trimmed.startsWith('/*') ||
+    trimmed.includes('{/*')
+  )
+}
+
+function isDataLine(line: string): boolean {
+  // mock data, useState init, object assignment
+  return (
+    /const\s+\w+\s*=\s*\[/.test(line) ||   // const x = [
+    /const\s+\w+\s*=\s*\{/.test(line) ||   // const x = {
+    /useState\(/.test(line) ||               // useState({...})
+    /:\s*['"]/.test(line) ||                 // key: 'value'
+    isObjectLiteral(line)
+  )
+}
 
 export const persianNumeralsModule: CheckModule = {
   id: 'persian-numerals',
@@ -54,55 +61,49 @@ export const persianNumeralsModule: CheckModule = {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
 
-      // skip comments, imports, type declarations
+      if (isInsideComment(line)) continue
+      if (isDataLine(line)) continue
+      if (ALREADY_LOCALIZED.some(p => line.includes(p))) continue
+
+      // skip imports / type lines
       const trimmed = line.trim()
       if (
-        trimmed.startsWith('//') ||
-        trimmed.startsWith('*') ||
         trimmed.startsWith('import') ||
         trimmed.startsWith('export type') ||
         trimmed.startsWith('interface') ||
         trimmed.startsWith('type ')
       ) continue
 
-      // skip if already localized in this line
-      if (ALREADY_LOCALIZED.some(p => line.includes(p))) continue
-
-      // skip technical ID patterns
-      if (TECHNICAL_ID_PATTERNS.some(p => p.test(line))) continue
-
-      // check display number patterns
-      for (const pattern of DISPLAY_NUMBER_PATTERNS) {
-        pattern.lastIndex = 0
-        const match = pattern.exec(line)
-        if (!match) continue
+      // only flag simple {expr} in JSX that contain display keywords
+      SIMPLE_JSX_EXPR.lastIndex = 0
+      let match: RegExpExecArray | null
+      while ((match = SIMPLE_JSX_EXPR.exec(line)) !== null) {
+        const expr = match[1].toLowerCase()
+        const hasDisplayKeyword = DISPLAY_KEYWORDS.some(kw => expr.includes(kw.toLowerCase()))
+        if (!hasDisplayKeyword) continue
 
         violations.push({
           file: filePath,
           line: i + 1,
           module: 'persian-numerals',
           rule: 'use-locale-number',
-          message: `Number "${match[0].trim()}" displayed without fa-IR locale — wrap with .toLocaleString('fa-IR')`,
+          message: `{${match[1]}} — number display without fa-IR locale. Use: {${match[1]}.toLocaleString('${config.locale}')}`,
           severity: 'warning',
           autoFixable: false,
-          fix: `{value.toLocaleString('${config.locale}')}`,
         })
       }
 
-      // detect hardcoded Latin numbers inside Persian text strings
-      if (LATIN_IN_PERSIAN_STRING.test(line)) {
-        const hasPersianChar = /[؀-ۿ]/.test(line)
-        if (hasPersianChar) {
-          violations.push({
-            file: filePath,
-            line: i + 1,
-            module: 'persian-numerals',
-            rule: 'latin-in-persian-string',
-            message: 'Latin digits inside Persian string — use Persian numerals (۰-۹) or toLocaleString',
-            severity: 'info',
-            autoFixable: false,
-          })
-        }
+      // detect hardcoded Latin numbers inside Persian UI strings
+      if (/["'][^"']*\d{2,}[^"']*["']/.test(line) && /[؀-ۿ]/.test(line)) {
+        violations.push({
+          file: filePath,
+          line: i + 1,
+          module: 'persian-numerals',
+          rule: 'latin-in-persian-string',
+          message: 'Latin digits inside Persian string — use Persian numerals (۰-۹) or toLocaleString',
+          severity: 'info',
+          autoFixable: false,
+        })
       }
     }
 

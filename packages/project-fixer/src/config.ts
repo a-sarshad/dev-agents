@@ -13,9 +13,15 @@ const DEFAULTS: ProjectConfig = {
 }
 
 export function loadConfig(projectRoot: string): ProjectConfig {
-  const configPath = resolve(projectRoot, '.projfix.json')
+  // search: CWD first, then provided path (handles `projfix ./src` from project root)
+  const candidates = [
+    resolve(process.cwd(), '.projfix.json'),
+    resolve(projectRoot, '.projfix.json'),
+  ]
 
-  if (!existsSync(configPath)) {
+  const configPath = candidates.find(p => existsSync(p))
+
+  if (!configPath) {
     console.warn(`⚠️  No .projfix.json found — using defaults (direction: rtl, locale: fa-IR)`)
     return DEFAULTS
   }
