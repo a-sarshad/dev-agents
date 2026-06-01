@@ -41,6 +41,28 @@ export function runGitCheck(projectRoot: string): {
   return { uncommitted, unpushed }
 }
 
+export function runHandoffCheck(projectRoot: string): { stale: boolean; commitsBehind: number } {
+  try {
+    const lastHandoff = execSync(
+      'git log --oneline -1 -- HANDOFF.md 2>/dev/null',
+      { cwd: projectRoot, shell: '/bin/sh' }
+    ).toString().trim()
+
+    if (!lastHandoff) return { stale: false, commitsBehind: 0 }
+
+    const hash = lastHandoff.split(' ')[0]
+    const behind = execSync(
+      `git log ${hash}..HEAD --oneline 2>/dev/null`,
+      { cwd: projectRoot, shell: '/bin/sh' }
+    ).toString().trim()
+
+    const count = behind ? behind.split('\n').filter(l => l.trim()).length : 0
+    return { stale: count > 3, commitsBehind: count }
+  } catch {
+    return { stale: false, commitsBehind: 0 }
+  }
+}
+
 // These run as standalone checks (not file-by-file), called from engine separately
 export const buildGitModule: CheckModule = {
   id: 'build-git',

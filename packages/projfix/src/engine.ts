@@ -13,7 +13,7 @@ import { chakraKnownBugsModule } from './modules/chakra-known-bugs.js'
 import { domOrderModule } from './modules/dom-order.js'
 import { debugArtifactsModule } from './modules/debug-artifacts.js'
 import { createTokenReplacerModule } from './modules/token-replacer.js'
-import { runBuildCheck, runGitCheck } from './modules/build-git-check.js'
+import { runBuildCheck, runGitCheck, runHandoffCheck } from './modules/build-git-check.js'
 import { dsComponentUsageModule } from './modules/ds-component-usage.js'
 
 const BASE_MODULES: CheckModule[] = [
@@ -205,6 +205,20 @@ export async function run(
           file: '[git]', line: 0, module: 'build-git', rule: 'git-dirty',
           message: msgs.join(' | '),
           severity: git.uncommitted.length > 0 ? 'error' : 'warning',
+          autoFixable: false,
+        }],
+        fixed: 0, skipped: 0,
+      })
+    }
+
+    const handoff = runHandoffCheck(projectRoot)
+    if (handoff.stale) {
+      results.push({
+        file: '[handoff]',
+        violations: [{
+          file: '[handoff]', line: 0, module: 'build-git', rule: 'handoff-stale',
+          message: `HANDOFF.md is ${handoff.commitsBehind} commits behind — run wf-session-update`,
+          severity: 'warning',
           autoFixable: false,
         }],
         fixed: 0, skipped: 0,
