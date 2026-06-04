@@ -2,10 +2,14 @@
 import { Command } from 'commander'
 import { resolve } from 'path'
 import { watch } from 'fs'
+import chalk from 'chalk'
 import { loadConfig } from './config.js'
 import { run } from './engine.js'
 import { printResult, printJSON } from './reporter.js'
 import { runInit } from './init.js'
+import { runDoctor } from './doctor.js'
+import { runFigmaSync } from './figma-sync.js'
+import { loadMergedResolve, resolveName } from './cache.js'
 import type { RunOptions } from './types.js'
 
 const program = new Command()
@@ -94,6 +98,53 @@ program
   .action(async (dir?: string) => {
     const targetDir = resolve(process.cwd(), dir ?? '.')
     await runInit(targetDir)
+  })
+
+// ── Doctor — preflight (BLUEPRINT §3 STEP 0) ──────────────────────────────────
+program
+  .command('doctor [path]')
+  .description('preflight: env، DS، cache، freshness — قبل از impl اجرا کن')
+  .option('--config <path>', 'explicit path to .dev-engine.json')
+  .action((path: string | undefined, opts: { config?: string }) => {
+    const projectRoot = resolve(process.cwd(), path ?? '.')
+    const config = loadConfig(projectRoot, opts.config)
+    const ok = runDoctor(projectRoot, config)
+    process.exit(ok ? 0 : 1)
+  })
+
+// ── Resolve — Figma name → code mapping (cache local، صفر MCP) ─────────────────
+program
+  .command('resolve <name>')
+  .description('یه component/token نام Figma رو از cache local به mapping کد resolve کن')
+  .option('--config <path>', 'explicit path to .dev-engine.json')
+  .option('--json', 'output as JSON', false)
+  .action((name: string, opts: { config?: string; json: boolean }) => {
+    const projectRoot = process.cwd()
+    const config = loadConfig(projectRoot, opts.config)
+    const merged = loadMergedResolve(projectRoot, config)
+    const hit = resolveName(merged, name)
+    if (opts.json) {
+      console.log(JSON.stringify(hit))
+      process.exit(hit ? 0 : 2)
+    }
+    if (!hit) {
+      console.log(chalk.yellow(`✗ no mapping for "${name}" — Local+DS miss → از DS MCP بگیر یا Build last`))
+      process.exit(2)
+    }
+    console.log(`${chalk.cyan('[' + hit.kind + ']')}  ${name} → ${chalk.green(hit.value)}`)
+  })
+
+// ── Figma-sync — validate/scaffold cache (BLUEPRINT §6) ───────────────────────
+program
+  .command('figma-sync [path]')
+  .description('وضعیت/scaffold لایه‌های figma-resolve cache (population: MCP via Claude یا REST)')
+  .option('--config <path>', 'explicit path to .dev-engine.json')
+  .option('--init', 'یه template خالی figma-resolve.json در .claude/context/ بساز', false)
+  .option('--scan', 'src/components رو scan کن و لایه Local رو auto-populate کن', false)
+  .action((path: string | undefined, opts: { config?: string; init: boolean; scan: boolean }) => {
+    const projectRoot = resolve(process.cwd(), path ?? '.')
+    const config = loadConfig(projectRoot, opts.config)
+    runFigmaSync(projectRoot, config, { init: opts.init, scan: opts.scan })
   })
 
 program.parse()

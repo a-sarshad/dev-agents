@@ -19,6 +19,12 @@ export interface ProjectConfig {
   ignore_custom_components?: string[]
   claude_api_key?: string
   modules?: string[]
+  // Figma sync (BLUEPRINT §6) — اول پروژه پرسیده و اینجا ذخیره می‌شه
+  figma_source?: 'mcp' | 'rest'
+  figma_file_key?: string
+  ds_mcp?: string
+  dev_knowledge_path?: string   // override برای پیدا کردن لایه DS cache
+  import_alias?: string         // برای scan — مثلاً '@/' (پیش‌فرض)
 }
 
 export interface Violation {
@@ -58,4 +64,18 @@ export interface RunOptions {
   changed: boolean
   modules?: string[]
   verbose: boolean
+}
+
+// ── Figma → code resolution cache (BLUEPRINT §6) ──────────────────────────────
+// دو لایه: DS (shared، در dev-knowledge) + Local (در repo پروژه). merge با Local-first.
+export interface FigmaResolveCache {
+  components?: Record<string, string>   // Figma component name → code import (e.g. "Button": "@chakra-ui/react#Button")
+  tokens?: Record<string, string>       // Figma var/token → code token (e.g. "color/primary/500": "colors.primary.500")
+  variables?: Record<string, string>    // Figma boolean/string variable → معنی/flag
+  _synced?: string                      // ISO date آخرین sync
+  _source?: string                      // 'mcp' | 'rest' | 'seed'
+}
+
+export interface MergedResolve extends FigmaResolveCache {
+  _layers: { ds: boolean; local: boolean }   // کدوم لایه‌ها contribute کردن
 }
