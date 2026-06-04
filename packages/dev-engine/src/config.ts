@@ -16,14 +16,14 @@ export function loadConfig(projectRoot: string, explicitConfigPath?: string): Pr
   const candidates = explicitConfigPath
     ? [resolve(process.cwd(), explicitConfigPath)]
     : [
-        resolve(process.cwd(), '.projfix.json'),
-        resolve(projectRoot, '.projfix.json'),
+        resolve(process.cwd(), '.dev-engine.json'),
+        resolve(projectRoot, '.dev-engine.json'),
       ]
 
   const configPath = candidates.find(p => existsSync(p))
 
   if (!configPath) {
-    console.warn(`⚠️  No .projfix.json found — using defaults (direction: rtl, locale: fa-IR)`)
+    console.warn(`⚠️  No .dev-engine.json found — using defaults (direction: rtl, locale: fa-IR)`)
     return DEFAULTS
   }
 

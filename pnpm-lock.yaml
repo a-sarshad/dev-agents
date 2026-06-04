@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  packages/projfix:
+  packages/dev-engine:
     dependencies:
       '@babel/parser':
         specifier: ^7.24.0

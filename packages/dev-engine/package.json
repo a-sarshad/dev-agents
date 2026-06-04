@@ -1,10 +1,10 @@
 {
-  "name": "@dev-agents/projfix",
+  "name": "@dev-agents/dev-engine",
   "version": "0.1.0",
   "description": "Consistency checker & auto-fixer for RTL/LTR projects — DS-agnostic",
   "type": "module",
   "bin": {
-    "projfix": "./dist/cli.js"
+    "dev-engine": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",

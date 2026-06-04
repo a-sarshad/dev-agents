@@ -11,7 +11,7 @@ import type { RunOptions } from './types.js'
 const program = new Command()
 
 program
-  .name('projfix')
+  .name('dev-engine')
   .description('Project consistency checker & auto-fixer — RTL/LTR, DS-agnostic')
   .version('0.1.0')
 
@@ -25,7 +25,7 @@ program
   .option('--json', 'output as JSON', false)
   .option('--verbose', 'show all files including clean ones', false)
   .option('--exit-zero', 'always exit 0 (useful for CI report-only pipelines)', false)
-  .option('--config <path>', 'explicit path to .projfix.json (overrides auto-detect)')
+  .option('--config <path>', 'explicit path to .dev-engine.json (overrides auto-detect)')
   .option('--watch', 'watch for file changes and re-run automatically', false)
   .action(async (inputPath: string, opts: {
     fix: boolean
@@ -52,7 +52,7 @@ program
     const doRun = async (label?: string) => {
       if (label) console.log(`\n🔄  ${label}\n`)
       else {
-        console.log(`\n🔍 projfix — checking ${projectRoot}`)
+        console.log(`\n🔍 dev-engine — checking ${projectRoot}`)
         console.log(`   direction: ${config.direction} | ds: ${config.ds} | locale: ${config.locale}\n`)
       }
 
@@ -90,7 +90,7 @@ program
 // ── Init subcommand ───────────────────────────────────────────────────────────
 program
   .command('init [dir]')
-  .description('create .projfix.json interactively')
+  .description('create .dev-engine.json interactively')
   .action(async (dir?: string) => {
     const targetDir = resolve(process.cwd(), dir ?? '.')
     await runInit(targetDir)

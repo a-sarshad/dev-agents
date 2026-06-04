@@ -55,17 +55,17 @@ function getIgnoredLines(content: string): Set<number> {
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim()
-    // inline: any line ending with // projfix-ignore
-    if (lines[i].includes('// projfix-ignore')) {
+    // inline: any line ending with // dev-engine-ignore
+    if (lines[i].includes('// dev-engine-ignore')) {
       ignored.add(i + 1)
       continue
     }
-    // block: // projfix-disable ... // projfix-enable
-    if (trimmed.startsWith('// projfix-disable')) {
+    // block: // dev-engine-disable ... // dev-engine-enable
+    if (trimmed.startsWith('// dev-engine-disable')) {
       disabledFrom = i + 2  // disable starts on NEXT line
       continue
     }
-    if (trimmed === '// projfix-enable') {
+    if (trimmed === '// dev-engine-enable') {
       // disable ends on this line (enable line itself is not disabled)
       if (disabledFrom !== -1) {
         for (let n = disabledFrom; n <= i; n++) ignored.add(n)

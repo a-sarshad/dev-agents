@@ -21,10 +21,10 @@ export async function runInit(targetDir: string): Promise<void> {
       })
     )
 
-  const configPath = resolve(targetDir, '.projfix.json')
+  const configPath = resolve(targetDir, '.dev-engine.json')
 
   if (existsSync(configPath)) {
-    const overwrite = await ask('.projfix.json already exists. Overwrite? (y/N)', 'N')
+    const overwrite = await ask('.dev-engine.json already exists. Overwrite? (y/N)', 'N')
     if (overwrite.toLowerCase() !== 'y') {
       rl.close()
       console.log('  Cancelled.')
@@ -32,7 +32,7 @@ export async function runInit(targetDir: string): Promise<void> {
     }
   }
 
-  console.log('\n🛠  projfix init\n')
+  console.log('\n🛠  dev-engine init\n')
 
   const directionRaw = await ask('Direction (rtl/ltr/both)', 'rtl')
   const direction = validate(directionRaw, DIR_OPTIONS, 'rtl')

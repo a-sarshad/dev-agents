@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to .projfix.json in your project root and customize",
+  "_comment": "Copy to .dev-engine.json in your project root and customize",
 
   "direction": "rtl",
   "locale": "fa-IR",
