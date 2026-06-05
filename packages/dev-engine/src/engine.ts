@@ -181,7 +181,7 @@ export async function run(
 
   // ── Build & Git check (project-level, not per-file) ──────────────────────
   if (!options.modules || options.modules.includes('build-git')) {
-    const build = runBuildCheck(projectRoot)
+    const build = runBuildCheck(projectRoot, config.build_command)
     if (!build.passed) {
       results.push({
         file: '[build]',

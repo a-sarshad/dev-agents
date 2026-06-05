@@ -19,6 +19,9 @@ export interface ProjectConfig {
   ignore_custom_components?: string[]
   claude_api_key?: string
   modules?: string[]
+  // override برای build-git check — اگه set شه عیناً اجرا می‌شه (مثلاً "npx tsc --noEmit").
+  // خالی → auto-detect: `<pm> run build` که pm از lockfile پروژه میاد.
+  build_command?: string
   // Figma sync (BLUEPRINT §6) — اول پروژه پرسیده و اینجا ذخیره می‌شه
   figma_source?: 'mcp' | 'rest'
   figma_file_key?: string

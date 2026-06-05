@@ -18,6 +18,9 @@ const ALREADY_LOCALIZED = [
 // NOT JSX comments {/* ... */}
 const SIMPLE_JSX_EXPR = /\{(?!\s*\/\*)([a-zA-Z_$][a-zA-Z0-9_.()[\]'"]*)\}/g
 
+// A single- or double-quoted string literal; group 2 = inner text.
+const STRING_LITERAL = /(["'])((?:(?!\1).)*)\1/g
+
 function isObjectLiteral(line: string): boolean {
   // line has { key: value } pattern → data definition, not display
   return /\{\s*\w+\s*:/.test(line)
@@ -107,17 +110,27 @@ export const persianNumeralsModule: CheckModule = {
         })
       }
 
-      // detect hardcoded Latin numbers inside Persian UI strings
-      if (/["'][^"']*\d{2,}[^"']*["']/.test(line) && /[؀-ۿ]/.test(line)) {
-        violations.push({
-          file: filePath,
-          line: i + 1,
-          module: 'persian-numerals',
-          rule: 'latin-in-persian-string',
-          message: 'Latin digits inside Persian string — use Persian numerals (۰-۹) or toLocaleString',
-          severity: 'info',
-          autoFixable: false,
-        })
+      // detect hardcoded Latin numbers inside Persian UI strings.
+      // Check each string literal in isolation — a digit and a Persian char must
+      // co-occur INSIDE the same quoted string. Avoids false positives where a
+      // Chakra scale prop (h="12") shares a line with an unrelated Persian
+      // comment (/* ارتفاع 48px */), which the old line-level test mis-flagged.
+      STRING_LITERAL.lastIndex = 0
+      let strMatch: RegExpExecArray | null
+      while ((strMatch = STRING_LITERAL.exec(line)) !== null) {
+        const str = strMatch[2]
+        if (/\d{2,}/.test(str) && /[؀-ۿ]/.test(str)) {
+          violations.push({
+            file: filePath,
+            line: i + 1,
+            module: 'persian-numerals',
+            rule: 'latin-in-persian-string',
+            message: 'Latin digits inside Persian string — use Persian numerals (۰-۹) or toLocaleString',
+            severity: 'info',
+            autoFixable: false,
+          })
+          break
+        }
       }
     }
 

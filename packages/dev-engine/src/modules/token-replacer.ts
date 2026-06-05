@@ -33,6 +33,9 @@ const PX_FONTSIZE = /fontSize[=: ]["'`](\d+px)["'`]/g
 const PX_FONTWEIGHT = /fontWeight[=: ]["'`]?(\d+)["'`]?/g
 const PX_BORDER_RADIUS = /borderRadius[=: ]["'`](\d+px)["'`]/g
 const STYLE_SPACING = /(?:margin|padding|gap|top|bottom|left|right)[A-Za-z]*[=: ]["'`](\d+px)["'`]/g
+// Chakra spacing shorthand props (p, px, py, pt, pr, pb, pl, ps, pe, m, mx, …)
+// with a hardcoded px value. Full words are handled by STYLE_SPACING above.
+const CHAKRA_SPACING_PROP = /\b(p[xytrblse]?|m[xytrblse]?)[=:]\s*["'`](\d+px)["'`]/g
 
 function isSkippableLine(line: string): boolean {
   const t = line.trim()
@@ -142,6 +145,21 @@ export function createTokenReplacerModule(projectRoot: string): CheckModule {
             module: 'token-replacer', rule: 'hardcoded-spacing',
             message: `spacing "${px}" → token "${token}" (use Chakra prop instead of inline style)`,
             severity: 'info', autoFixable: false,
+          })
+        }
+
+        // ── Chakra spacing shorthand (p/m/mt/...) ───────────────
+        CHAKRA_SPACING_PROP.lastIndex = 0
+        while ((m = CHAKRA_SPACING_PROP.exec(line)) !== null) {
+          const px = m[2]
+          const token = tokenMap.spacing?.[px]
+          if (!token) continue
+          violations.push({
+            file: filePath, line: i + 1,
+            module: 'token-replacer', rule: 'hardcoded-spacing',
+            message: `${m[1]}="${px}" → ${m[1]}="${token}"`,
+            severity: 'warning', autoFixable: true,
+            original: m[0], replacement: m[0].replace(px, token),
           })
         }
       }

@@ -1,15 +1,28 @@
 import { execSync } from 'child_process'
+import { existsSync } from 'fs'
+import { resolve } from 'path'
 import type { CheckModule, CheckResult, ProjectConfig } from '../types.js'
 
-export function runBuildCheck(projectRoot: string): { passed: boolean; error?: string } {
-  try {
-    const pm = (() => {
-      try { execSync('pnpm --version', { cwd: projectRoot, stdio: 'pipe' }); return 'pnpm' } catch { }
-      try { execSync('yarn --version', { cwd: projectRoot, stdio: 'pipe' }); return 'yarn' } catch { }
-      return 'npm'
-    })()
+// Pick the package manager from the project's lockfile, not from what happens
+// to be installed globally — otherwise a globally-installed pnpm runs
+// `pnpm run build` against an npm project and reports a phantom build failure.
+function detectPackageManager(projectRoot: string): 'pnpm' | 'yarn' | 'npm' {
+  if (existsSync(resolve(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm'
+  if (existsSync(resolve(projectRoot, 'yarn.lock'))) return 'yarn'
+  if (existsSync(resolve(projectRoot, 'package-lock.json'))) return 'npm'
+  // no lockfile → fall back to whatever is installed
+  try { execSync('pnpm --version', { cwd: projectRoot, stdio: 'pipe' }); return 'pnpm' } catch { }
+  try { execSync('yarn --version', { cwd: projectRoot, stdio: 'pipe' }); return 'yarn' } catch { }
+  return 'npm'
+}
 
-    execSync(`${pm} run build`, { cwd: projectRoot, stdio: 'pipe' })
+export function runBuildCheck(projectRoot: string, buildCommand?: string): { passed: boolean; error?: string } {
+  try {
+    const cmd = buildCommand?.trim()
+      ? buildCommand
+      : `${detectPackageManager(projectRoot)} run build`
+
+    execSync(cmd, { cwd: projectRoot, stdio: 'pipe' })
     return { passed: true }
   } catch (e: unknown) {
     const err = e as { stderr?: Buffer; stdout?: Buffer }
