@@ -3,7 +3,7 @@ import type { CheckModule, ProjectConfig, Violation } from '../types.js'
 export const domOrderModule: CheckModule = {
   id: 'dom-order',
   name: 'RTL DOM Order',
-  description: 'Detects wrong DOM order for RTL — icon/switch should be FIRST (rightmost)',
+  description: 'Detects wrong DOM order for RTL — icon/switch FIRST (rightmost), Dialog close at top-left (insetEnd)',
   supportedDirections: ['rtl'],
 
   check(filePath: string, content: string, _config: ProjectConfig): Violation[] {
@@ -80,17 +80,42 @@ export const domOrderModule: CheckModule = {
         })
       }
 
-      // Dialog/Modal close button on right side (should be left/start in RTL)
-      if ((line.includes('CloseButton') || line.includes('DialogClose')) && /right=["'`]/.test(line)) {
-        violations.push({
-          file: filePath,
-          line: i + 1,
-          module: 'dom-order',
-          rule: 'close-button-position',
-          message: 'Close button uses right= (physical) — use insetInlineStart= for RTL',
-          severity: 'warning',
-          autoFixable: false,
-        })
+      // Dialog/Modal close button placement.
+      // RTL convention: title sits at start (right), close (×) sits at the FAR
+      // corner = top-LEFT = end. So close must use insetEnd, NOT insetStart/right/left.
+      const isCloseEl =
+        line.includes('CloseTrigger') ||
+        line.includes('CloseButton') ||
+        line.includes('DialogClose')
+      if (isCloseEl) {
+        // physical right=/left= — not logical
+        if (/\b(right|left)=["'`]/.test(line)) {
+          violations.push({
+            file: filePath,
+            line: i + 1,
+            module: 'dom-order',
+            rule: 'close-button-physical-prop',
+            message: 'Close button uses a physical prop (right=/left=) — use logical insetEnd= (RTL close sits top-left)',
+            severity: 'warning',
+            autoFixable: false,
+          })
+        }
+        // insetStart/insetInlineStart — logical but WRONG corner (start = right in RTL).
+        const startMatch = line.match(/\b(insetStart|insetInlineStart)=/)
+        if (startMatch) {
+          const wrong = startMatch[1]
+          const right = wrong === 'insetStart' ? 'insetEnd' : 'insetInlineEnd'
+          violations.push({
+            file: filePath,
+            line: i + 1,
+            module: 'dom-order',
+            rule: 'close-button-wrong-corner',
+            message: `Close button uses ${wrong}= (start = right in RTL) — use ${right}= so × sits at the top-left corner (matches Dialog convention)`,
+            severity: 'warning',
+            autoFixable: false,
+            fix: `Change ${wrong}= to ${right}= on the CloseTrigger/CloseButton`,
+          })
+        }
       }
     }
 
