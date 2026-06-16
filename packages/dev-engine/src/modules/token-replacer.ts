@@ -36,6 +36,10 @@ const STYLE_SPACING = /(?:margin|padding|gap|top|bottom|left|right)[A-Za-z]*[=: 
 // Chakra spacing shorthand props (p, px, py, pt, pr, pb, pl, ps, pe, m, mx, …)
 // with a hardcoded px value. Full words are handled by STYLE_SPACING above.
 const CHAKRA_SPACING_PROP = /\b(p[xytrblse]?|m[xytrblse]?)[=:]\s*["'`](\d+px)["'`]/g
+// Raw palette step (e.g. teal.50, gray.200) on a theme-able surface prop.
+// These are valid tokens (so the hardcode check passes) but DON'T adapt in dark mode —
+// the semantic token (brand.bg, bg.subtle, teal.subtle…) should be used instead.
+const RAW_PALETTE_PROP = /\b(bg|background|backgroundColor|borderColor|color)\s*[=:]\s*["'`](gray|red|orange|yellow|green|teal|blue|cyan|purple|pink)\.(\d{2,3})["'`]/g
 
 function isSkippableLine(line: string): boolean {
   const t = line.trim()
@@ -161,6 +165,20 @@ export function createTokenReplacerModule(projectRoot: string): CheckModule {
             severity: 'warning', autoFixable: true,
             original: m[0], replacement: m[0].replace(px, token),
           })
+        }
+
+        // ── Raw palette on theme prop (prefer semantic) ─────────
+        // skip decorative shades (glows): lines with filter/opacity
+        if (!line.includes('filter=') && !line.includes('opacity')) {
+          RAW_PALETTE_PROP.lastIndex = 0
+          while ((m = RAW_PALETTE_PROP.exec(line)) !== null) {
+            violations.push({
+              file: filePath, line: i + 1,
+              module: 'token-replacer', rule: 'raw-palette-on-theme-prop',
+              message: `${m[1]}="${m[2]}.${m[3]}" is a raw palette step — use a semantic token (brand.*, bg.*, fg.*, ${m[2]}.subtle…). Raw palette doesn't adapt in dark mode.`,
+              severity: 'warning', autoFixable: false,
+            })
+          }
         }
       }
 
